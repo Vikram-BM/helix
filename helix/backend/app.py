@@ -1,5 +1,5 @@
-from flask import Flask, request, jsonify
 from flask_cors import CORS
+from flask import Flask, request, jsonify
 from flask_socketio import SocketIO, emit
 import os
 from dotenv import load_dotenv
@@ -24,7 +24,7 @@ app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key')
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///helix.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-CORS(app, resources={r"/*": {"origins": "*"}})
+CORS(app)
 socketio = SocketIO(app, cors_allowed_origins="*")
 
 init_db(app)

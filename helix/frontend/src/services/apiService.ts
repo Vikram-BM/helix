@@ -71,7 +71,7 @@ export const updateUserProfile = async (updates: Partial<User>): Promise<User> =
   return response.data;
 };
 
-export default {
+const apiService = {
   fetchSequences,
   fetchSequence,
   createSequence,
@@ -84,3 +84,5 @@ export default {
   getUserProfile,
   updateUserProfile,
 };
+
+export default apiService;
