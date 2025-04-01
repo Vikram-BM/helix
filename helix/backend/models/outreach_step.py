@@ -18,13 +18,13 @@ class OutreachStep(db.Model):
     def to_dict(self):
         return {
             'id': self.id,
-            'sequence_id': self.sequence_id,
-            'step_number': self.step_number,
+            'sequenceId': self.sequence_id,
+            'stepNumber': self.step_number,
             'type': self.type,
             'content': self.content,
             'subject': self.subject,
             'timing': self.timing,
-            'wait_time': self.wait_time,
-            'created_at': self.created_at.isoformat(),
-            'updated_at': self.updated_at.isoformat()
+            'waitTime': self.wait_time,
+            'createdAt': self.created_at.isoformat() if self.created_at else None,
+            'updatedAt': self.updated_at.isoformat() if self.updated_at else None
         }

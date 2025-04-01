@@ -19,12 +19,13 @@ class OutreachSequence(db.Model):
     def to_dict(self):
         return {
             'id': self.id,
-            'user_id': self.user_id,
+            'userId': self.user_id,
             'name': self.name,
-            'company_name': self.company_name,
-            'role_name': self.role_name,
-            'candidate_persona': self.candidate_persona,
-            'created_at': self.created_at.isoformat(),
-            'updated_at': self.updated_at.isoformat(),
+            'companyName': self.company_name,
+            'roleName': self.role_name,
+            'candidatePersona': self.candidate_persona,
+            'createdAt': self.created_at.isoformat() if self.created_at else None,
+            'updatedAt': self.updated_at.isoformat() if self.updated_at else None,
             'steps': [step.to_dict() for step in self.steps] if self.steps else []
         }
+

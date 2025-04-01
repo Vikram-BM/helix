@@ -347,7 +347,7 @@ class AgenticService:
             return f"Error executing function {function_name}: {str(e)}"
 
     def generate_sequence(self, company_name, role_name, candidate_persona, session):
-        # Create a new outreach sequence record without a description field
+        # Create a new outreach sequence record
         sequence = OutreachSequence(
             id=str(uuid.uuid4()),
             user_id=session.user_id,
@@ -359,17 +359,17 @@ class AgenticService:
             updated_at=datetime.now(UTC)
         )
         self.db.session.add(sequence)
-        # Flush the session so that the new record is inserted and its ID is valid
+        # Flush to assign a valid ID
         self.db.session.flush()
 
         session.current_sequence_id = sequence.id
         self.db.session.commit()
 
-        # Make sure you have something like this:
+        # Emit the new sequence via WebSocket
         from app import socketio
         socketio.emit('sequence_created', sequence.to_dict(), broadcast=True)
 
-        # Prepare a prompt for generating sequence steps
+        # Prepare the prompt for generating steps
         steps_prompt = (
             f"Create a professional, personable 4-step outreach sequence for recruiting a {role_name} at {company_name}. "
             f"The ideal candidate is: {candidate_persona}. For each step, provide the step type (email, LinkedIn, phone), "
@@ -387,11 +387,11 @@ class AgenticService:
         steps_text = steps_response.choices[0].message.content
 
         # Initialize parsing variables
-        current_step = None
+        current_step = ""
         step_number = 1
-        step_type = None
-        subject = None
-        timing = None
+        step_type = ""
+        subject = ""
+        timing = ""
         content_lines = []
 
         # Process each line from the generated steps text
@@ -400,8 +400,9 @@ class AgenticService:
             if not line:
                 continue
 
-            # If a new step indicator is found
+            # New step indicator
             if line.lower().startswith("step"):
+                # Save previous step if available
                 if current_step and step_type and content_lines:
                     from app import OutreachStep
                     step = OutreachStep(
@@ -410,20 +411,22 @@ class AgenticService:
                         step_number=step_number,
                         type=step_type.lower(),
                         content='\n'.join(content_lines),
-                        subject=subject,
-                        timing=timing,
+                        subject=subject if subject else None,
+                        timing=timing if timing else None,
                         wait_time=step_number - 1,
                         created_at=datetime.now(UTC),
                         updated_at=datetime.now(UTC)
                     )
                     self.db.session.add(step)
                     step_number += 1
+                # Reset for new step
                 current_step = line
-                step_type = None
-                subject = None
-                timing = None
+                step_type = ""
+                subject = ""
+                timing = ""
                 content_lines = []
             elif "type:" in line.lower():
+                # Determine step type based on content
                 if "email" in line.lower():
                     step_type = "email"
                 elif "linkedin" in line.lower():
@@ -432,14 +435,14 @@ class AgenticService:
                     step_type = "phone"
                 else:
                     step_type = "other"
-            elif "subject:" in line.lower() and step_type == "email":
-                subject = line.split(":", 1)[1].strip()
-            elif "timing:" in line.lower() or "day:" in line.lower():
-                timing = line.split(":", 1)[1].strip()  # Ensure .strip() is called
+            elif "subject:" in line.lower():
+                subject = line.split("subject:", 1)[1].strip()
+            elif "timing:" in line.lower():
+                timing = line.split("timing:", 1)[1].strip()
             else:
                 content_lines.append(line)
 
-        # Save the final step if available
+        # --- FIX: Add the final step after processing all lines ---
         if current_step and step_type and content_lines:
             from app import OutreachStep
             step = OutreachStep(
@@ -448,8 +451,8 @@ class AgenticService:
                 step_number=step_number,
                 type=step_type.lower(),
                 content='\n'.join(content_lines),
-                subject=subject,
-                timing=timing,
+                subject=subject if subject else None,
+                timing=timing if timing else None,
                 wait_time=step_number - 1,
                 created_at=datetime.now(UTC),
                 updated_at=datetime.now(UTC)
@@ -457,8 +460,9 @@ class AgenticService:
             self.db.session.add(step)
 
         self.db.session.commit()
-        print("HERE", steps_text)
-        return f"Outreach sequence generated with {step_number} steps."
+
+        return sequence.to_dict()
+
 
     def update_sequence(self, sequence_id, updates):
         try:
@@ -472,13 +476,13 @@ class AgenticService:
                 sequence.name = updates["name"]
 
             if "company_name" in updates:
-                sequence.company_name = updates["company_name"]
+                sequence.companyName = updates["company_name"]
 
             if "role_name" in updates:
-                sequence.role_name = updates["role_name"]
+                sequence.roleName = updates["role_name"]
 
             if "candidate_persona" in updates:
-                sequence.candidate_persona = updates["candidate_persona"]
+                sequence.candidatePersona = updates["candidate_persona"]
 
             sequence.updated_at = datetime.utcnow()
             self.db.session.commit()
