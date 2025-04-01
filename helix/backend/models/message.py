@@ -1,6 +1,6 @@
-from .database import db
+from models import db
 import json
-from datetime import datetime
+from datetime import datetime, UTC
 
 class Message(db.Model):
     __tablename__ = 'messages'
@@ -10,7 +10,7 @@ class Message(db.Model):
     role = db.Column(db.String(20), nullable=False)
     content = db.Column(db.Text, nullable=False)
     tool_call = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.now(UTC))
     
     def to_dict(self):
         return {

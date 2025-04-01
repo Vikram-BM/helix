@@ -1,5 +1,5 @@
-from .database import db
-from datetime import datetime
+from models import db
+from datetime import datetime, UTC
 
 class Session(db.Model):
     __tablename__ = 'sessions'
@@ -7,8 +7,8 @@ class Session(db.Model):
     id = db.Column(db.String(36), primary_key=True)
     user_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=False)
     current_sequence_id = db.Column(db.String(36), db.ForeignKey('outreach_sequences.id'), nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.now(UTC))
+    updated_at = db.Column(db.DateTime, default=datetime.now(UTC), onupdate=datetime.now(UTC))
     
     messages = db.relationship('Message', backref='session', lazy=True, order_by='Message.created_at')
     

@@ -1,17 +1,19 @@
 import os
 import json
 import openai
-from datetime import datetime
+from datetime import datetime, UTC
 import uuid
 
-from models.database import db
-from models.message import Message
-from models.sequence import OutreachSequence, OutreachStep
-
+# This class will have db set from app.py
 class AgenticService:
+    # Class variable for the db instance - will be set from app.py
+    db = None
+    
     def __init__(self):
-        self.client = openai.OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
-        self.model = os.getenv('OPENAI_MODEL', 'gpt-4')
+        # Use environment variable for API key with a placeholder as fallback
+        api_key = os.getenv('OPENAI_API_KEY', 'your-api-key-here')
+        self.client = openai.OpenAI(api_key=api_key)
+        self.model = os.getenv('OPENAI_MODEL', 'gpt-4o')
         self.system_message = """
         You are Helix, an AI recruiting assistant specialized in creating outreach sequences for recruiters.
         
@@ -198,6 +200,8 @@ class AgenticService:
                 tool_call = assistant_message.tool_calls[0]
                 
                 # Create a tool call notification message
+                from app import Message
+                
                 tool_call_message = Message(
                     id=str(uuid.uuid4()),
                     session_id=session.id,
@@ -207,11 +211,11 @@ class AgenticService:
                         "name": tool_call.function.name,
                         "status": "calling"
                     }),
-                    created_at=datetime.utcnow()
+                    created_at=datetime.now(UTC)
                 )
                 
-                db.session.add(tool_call_message)
-                db.session.commit()
+                self.db.session.add(tool_call_message)
+                self.db.session.commit()
                 
                 # Process the tool call
                 function_name = tool_call.function.name
@@ -226,7 +230,7 @@ class AgenticService:
                     "result": result
                 })
                 
-                db.session.commit()
+                self.db.session.commit()
                 
                 # Get the AI's response to the function result
                 messages.append({
@@ -255,46 +259,52 @@ class AgenticService:
                     messages=messages
                 )
                 
+                from app import Message
+                
                 final_message = Message(
                     id=str(uuid.uuid4()),
                     session_id=session.id,
                     role="assistant",
                     content=second_response.choices[0].message.content,
-                    created_at=datetime.utcnow()
+                    created_at=datetime.now(UTC)
                 )
                 
-                db.session.add(final_message)
-                db.session.commit()
+                self.db.session.add(final_message)
+                self.db.session.commit()
                 
                 return final_message
             else:
                 # No function call, just a regular message
+                from app import Message
+                
                 assistant_response = Message(
                     id=str(uuid.uuid4()),
                     session_id=session.id,
                     role="assistant",
                     content=assistant_message.content,
-                    created_at=datetime.utcnow()
+                    created_at=datetime.now(UTC)
                 )
                 
-                db.session.add(assistant_response)
-                db.session.commit()
+                self.db.session.add(assistant_response)
+                self.db.session.commit()
                 
                 return assistant_response
         
         except Exception as e:
             print(f"Error processing message: {e}")
             
+            from app import Message
+            
             error_message = Message(
                 id=str(uuid.uuid4()),
                 session_id=session.id,
                 role="assistant",
                 content="I apologize, but I encountered an error processing your request. Please try again.",
-                created_at=datetime.utcnow()
+                created_at=datetime.now(UTC)
             )
             
-            db.session.add(error_message)
-            db.session.commit()
+            self.db.session.add(error_message)
+            self.db.session.commit()
             
             return error_message
     
@@ -334,6 +344,9 @@ class AgenticService:
     def generate_sequence(self, company_name, role_name, candidate_persona, session):
         try:
             # Create a new sequence
+            # Reference model from app
+            from app import OutreachSequence
+            
             sequence = OutreachSequence(
                 id=str(uuid.uuid4()),
                 user_id=session.user_id,
@@ -341,16 +354,16 @@ class AgenticService:
                 company_name=company_name,
                 role_name=role_name,
                 candidate_persona=candidate_persona,
-                created_at=datetime.utcnow(),
-                updated_at=datetime.utcnow()
+                created_at=datetime.now(UTC),
+                updated_at=datetime.now(UTC)
             )
             
-            db.session.add(sequence)
+            self.db.session.add(sequence)
             
             # Update the session with the current sequence
             session.current_sequence_id = sequence.id
             
-            db.session.commit()
+            self.db.session.commit()
             
             # Generate steps using LLM
             steps_prompt = f"""
@@ -396,6 +409,8 @@ class AgenticService:
                 if line.startswith("Step") or line.startswith("#") or line.lower().startswith("day"):
                     # Save the previous step if it exists
                     if current_step and step_type and content_lines:
+                        from app import OutreachStep
+                        
                         step = OutreachStep(
                             id=str(uuid.uuid4()),
                             sequence_id=sequence.id,
@@ -405,11 +420,11 @@ class AgenticService:
                             subject=subject,
                             timing=timing,
                             wait_time=step_number - 1,
-                            created_at=datetime.utcnow(),
-                            updated_at=datetime.utcnow()
+                            created_at=datetime.now(UTC),
+                            updated_at=datetime.now(UTC)
                         )
                         
-                        db.session.add(step)
+                        self.db.session.add(step)
                         step_number += 1
                     
                     # Start a new step
@@ -442,6 +457,8 @@ class AgenticService:
             
             # Don't forget to add the last step
             if current_step and step_type and content_lines:
+                from app import OutreachStep
+                
                 step = OutreachStep(
                     id=str(uuid.uuid4()),
                     sequence_id=sequence.id,
@@ -451,24 +468,25 @@ class AgenticService:
                     subject=subject,
                     timing=timing,
                     wait_time=step_number - 1,
-                    created_at=datetime.utcnow(),
-                    updated_at=datetime.utcnow()
+                    created_at=datetime.now(UTC),
+                    updated_at=datetime.now(UTC)
                 )
                 
-                db.session.add(step)
+                self.db.session.add(step)
             
-            db.session.commit()
+            self.db.session.commit()
             
             # Return a success message
             return f"Created outreach sequence '{sequence.name}' with {step_number} steps"
         
         except Exception as e:
-            db.session.rollback()
+            self.db.session.rollback()
             return f"Error generating sequence: {str(e)}"
     
     def update_sequence(self, sequence_id, updates):
         try:
-            sequence = OutreachSequence.query.get(sequence_id)
+            from app import OutreachSequence
+            sequence = self.db.session.get(OutreachSequence, sequence_id)
             
             if not sequence:
                 return f"Sequence with ID {sequence_id} not found"
@@ -486,17 +504,18 @@ class AgenticService:
                 sequence.candidate_persona = updates["candidate_persona"]
             
             sequence.updated_at = datetime.utcnow()
-            db.session.commit()
+            self.db.session.commit()
             
             return f"Updated sequence '{sequence.name}' successfully"
         
         except Exception as e:
-            db.session.rollback()
+            self.db.session.rollback()
             return f"Error updating sequence: {str(e)}"
     
     def add_sequence_step(self, sequence_id, step_type, content, subject=None, timing=None, wait_time=None):
         try:
-            sequence = OutreachSequence.query.get(sequence_id)
+            from app import OutreachSequence
+            sequence = self.db.session.get(OutreachSequence, sequence_id)
             
             if not sequence:
                 return f"Sequence with ID {sequence_id} not found"
@@ -506,6 +525,7 @@ class AgenticService:
             if sequence.steps:
                 next_step_number = max(step.step_number for step in sequence.steps) + 1
             
+            from app import OutreachStep
             step = OutreachStep(
                 id=str(uuid.uuid4()),
                 sequence_id=sequence_id,
@@ -519,18 +539,19 @@ class AgenticService:
                 updated_at=datetime.utcnow()
             )
             
-            db.session.add(step)
-            db.session.commit()
+            self.db.session.add(step)
+            self.db.session.commit()
             
             return f"Added {step_type} step to sequence '{sequence.name}'"
         
         except Exception as e:
-            db.session.rollback()
+            self.db.session.rollback()
             return f"Error adding sequence step: {str(e)}"
     
     def update_sequence_step(self, step_id, updates):
         try:
-            step = OutreachStep.query.get(step_id)
+            from app import OutreachStep
+            step = self.db.session.get(OutreachStep, step_id)
             
             if not step:
                 return f"Step with ID {step_id} not found"
@@ -551,10 +572,10 @@ class AgenticService:
                 step.wait_time = updates["wait_time"]
             
             step.updated_at = datetime.utcnow()
-            db.session.commit()
+            self.db.session.commit()
             
             return f"Updated step {step.step_number} successfully"
         
         except Exception as e:
-            db.session.rollback()
+            self.db.session.rollback()
             return f"Error updating sequence step: {str(e)}"

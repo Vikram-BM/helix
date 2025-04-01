@@ -1,6 +1,6 @@
-from .database import db
+from models import db
 import json
-from datetime import datetime
+from datetime import datetime, UTC
 
 class User(db.Model):
     __tablename__ = 'users'
@@ -11,8 +11,8 @@ class User(db.Model):
     company = db.Column(db.String(100))
     role = db.Column(db.String(100))
     preferences = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.now(UTC))
+    updated_at = db.Column(db.DateTime, default=datetime.now(UTC), onupdate=datetime.now(UTC))
     
     def to_dict(self):
         return {
