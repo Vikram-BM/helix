@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import OutreachStep from './OutreachStep';
 import { OutreachSequence, OutreachStep as OutreachStepType } from '../types';
+import { socket } from '../services/socketService';
 
 interface WorkspacePanelProps {
   sequence: OutreachSequence | null;
@@ -9,10 +10,36 @@ interface WorkspacePanelProps {
 }
 
 const WorkspacePanel: React.FC<WorkspacePanelProps> = ({
-  sequence,
+  sequence: initialSequence,
   onUpdateStep,
   onUpdateSequence,
 }) => {
+  const [sequence, setSequence] = useState<OutreachSequence | null>(initialSequence);
+
+  // Sync local state with incoming prop
+  useEffect(() => {
+    setSequence(initialSequence);
+  }, [initialSequence]);
+
+  useEffect(() => {
+    socket.on('sequence_created', (newSequence: OutreachSequence) => {
+      // Update state with the new sequence
+      setSequence(newSequence);
+    });
+    return () => {
+      socket.off('sequence_created');
+    };
+  }, []);
+  
+
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const updatedName = e.target.value;
+    onUpdateSequence({ name: updatedName });
+    if (sequence) {
+      setSequence({ ...sequence, name: updatedName });
+    }
+  };
+
   if (!sequence) {
     return (
       <div className="workspace-panel empty-workspace">
@@ -32,10 +59,6 @@ const WorkspacePanel: React.FC<WorkspacePanelProps> = ({
       </div>
     );
   }
-
-  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    onUpdateSequence({ name: e.target.value });
-  };
 
   return (
     <div className="workspace-panel">
@@ -68,15 +91,11 @@ const WorkspacePanel: React.FC<WorkspacePanelProps> = ({
       </div>
 
       <div className="sequence-steps">
-        {sequence.steps.length > 0 ? (
+        {sequence.steps && sequence.steps.length > 0 ? (
           sequence.steps
             .sort((a, b) => a.stepNumber - b.stepNumber)
             .map((step) => (
-              <OutreachStep
-                key={step.id}
-                step={step}
-                onUpdate={onUpdateStep}
-              />
+              <OutreachStep key={step.id} step={step} onUpdate={onUpdateStep} />
             ))
         ) : (
           <div className="no-steps-message">

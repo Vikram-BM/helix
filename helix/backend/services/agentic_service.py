@@ -13,7 +13,7 @@ class AgenticService:
 
     def __init__(self):
         # Use environment variable for API key with a placeholder as fallback
-        api_key = os.getenv('OPENAI_API_KEY', 'your-api-key-here')
+        api_key = os.getenv('OPENAI_API_KEY', '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')
         self.client = openai.OpenAI(api_key=api_key)
         self.model = os.getenv('OPENAI_MODEL', 'gpt-4o')
         self.system_message = """
@@ -197,7 +197,7 @@ class AgenticService:
                 tools=tools,
                 tool_choice="auto"
             )
-
+            print("DEBUG: OpenAI raw response:", response)
             assistant_message = response.choices[0].message
 
             # Check if the assistant wants to call a function
@@ -365,6 +365,10 @@ class AgenticService:
         session.current_sequence_id = sequence.id
         self.db.session.commit()
 
+        # Make sure you have something like this:
+        from app import socketio
+        socketio.emit('sequence_created', sequence.to_dict(), broadcast=True)
+
         # Prepare a prompt for generating sequence steps
         steps_prompt = (
             f"Create a professional, personable 4-step outreach sequence for recruiting a {role_name} at {company_name}. "
@@ -453,6 +457,7 @@ class AgenticService:
             self.db.session.add(step)
 
         self.db.session.commit()
+        print("HERE", steps_text)
         return f"Outreach sequence generated with {step_number} steps."
 
     def update_sequence(self, sequence_id, updates):

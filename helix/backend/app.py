@@ -270,7 +270,7 @@ def create_message():
     db.session.commit()
 
     # Emit message to WebSocket clients
-    socketio.emit('message', user_message.to_dict())
+    # socketio.emit('message', user_message.to_dict())
 
     # Process message using message_service
     response = message_service.process_message(user_message, session)
