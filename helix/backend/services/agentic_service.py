@@ -13,7 +13,7 @@ class AgenticService:
 
     def __init__(self):
         # Use environment variable for API key with a placeholder as fallback
-        api_key = os.getenv('OPENAI_API_KEY', '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')
+        api_key = os.getenv('OPENAI_API_KEY', '')
         self.client = openai.OpenAI(api_key=api_key)
         self.model = os.getenv('OPENAI_MODEL', 'gpt-4o')
         self.system_message = """
